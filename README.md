@@ -64,7 +64,7 @@ With a more thorough AWS data source, the system would be able to identify optim
 
 Can subsitute any LLM optimized for function-calling. Running an LLM locally to hit was also considered as an alternative, ex Llama 3.2 w/Chat Ollama.
 
-The system was done outisde of a common LLM app framework (ex LangChain) to show effect of simpler helper tools to create a functioning agent. 
+The system was done outside of a common LLM app framework (ex LangChain) to show effect of simpler helper tools to create a functioning agent. 
 Extending this code's functionality (ex advanced memory, more complex routing, diversified output parsing), using the built-in tools from frameworks like this would likely prove useful.  
 
 #### Preventing Hallucinations 
