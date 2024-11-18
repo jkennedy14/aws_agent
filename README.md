@@ -13,7 +13,8 @@ Self-reflecting AI Agent architecture for allowing users to create, modify, and 
 
 ## Data Initialization
 A local csv file containing information on EC2 instances (cpu, ram, network performance, on demand cost, etc) is stored in /data.
-Upon script start, a SQLite db is created locally with an 'ec2_rec' table.   
+Upon script start, a SQLite db is created locally with an 'ec2_rec' table.
+(In theory, would have more detailed data source to use). 
 
 
 ## User Flow
