@@ -13,7 +13,8 @@ Self-reflecting AI Agent architecture for allowing users to create, modify, and 
 
 ## Data Initialization
 A local csv file containing information on EC2 instances (cpu, ram, network performance, on demand cost, etc) is stored in /data.
-Upon script start, a SQLite db is created locally with an 'ec2_rec' table.   
+Upon script start, a SQLite db is created locally with an 'ec2_rec' table.
+(In theory, would have more detailed data source to use). 
 
 
 ## User Flow
@@ -39,9 +40,10 @@ Upon script start, a SQLite db is created locally with an 'ec2_rec' table.
 
 1. Find instance with minimum cost per requirements - '4 RAM', 'get cheapest instance with 3 RAM and 2 CPU'
 2. Modify the EC2 config - 'change min count to 2 and max count to 4' 
-3. Modify the autoscaling config - 'change desired capacity to 5 and launch template name to test'
-4. Display current config - 'display config', 'show deployment settings', etc
-5. Deploy - 'config looks good', 'deploy' 
+3. Enable autoscaling - 'autoscaling' or 'add autoscaling'
+4. Modify the autoscaling config - 'change desired capacity to 5 and launch template name to test'
+5. Display current config - 'display config', 'show deployment settings', etc
+6. Deploy - 'config looks good', 'deploy' 
 
 ## Concepts
 
@@ -56,14 +58,14 @@ The user interface is kept simple through a CLI. Logging and error handling very
 
 #### Extensibility
 
-We are able to scale the number of intents within the system simply by expanding the model's prompt template. 
+We are able to scale the number of intents within the system simply by expanding the model's prompt template and creating the associated actions within the application. 
 Should the number of intents become large, it may become appropriate to implement a series of routers chained - ex first router routes to a cli decision engine --> engine routes to correct cli call. This would reduce the average # tokens per LLM call vs storing everything in one large prompt (saving on latency and cost). 
 
 With a more thorough AWS data source, the system would be able to identify optimal infrastructure with more parameters (ex # GPUs) with minor modifications to the application. 
 
 Can subsitute any LLM optimized for function-calling. Running an LLM locally to hit was also considered as an alternative, ex Llama 3.2 w/Chat Ollama.
 
-The system was done outisde of a common LLM app framework (ex LangChain) to show effect of simpler helper tools to create a functioning agent. 
+The system was done outside of a common LLM app framework (ex LangChain) to show effect of simpler helper tools to create a functioning agent. 
 Extending this code's functionality (ex advanced memory, more complex routing, diversified output parsing), using the built-in tools from frameworks like this would likely prove useful.  
 
 #### Preventing Hallucinations 
