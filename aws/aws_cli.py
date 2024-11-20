@@ -1,97 +1,116 @@
 import boto3
 import time
 from datetime import datetime
-from dataclasses import dataclass, field
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Callable
 from botocore.exceptions import ClientError
 import logging
+from pydantic import BaseModel, Field, model_validator, SkipValidation
 
 logger = logging.getLogger("aws_agent_logger")
 
-
-class AWSConfig:
+class AWSConfig(BaseModel):
     """
-    A class that represents an AWS configuration object.
-    Used as a base class for other AWS configuration dataclasses.
+    Base Config class for AWS CLI deployment configurations
+
+    Inherited by EC2 Config and AutoScaling Config
     """
 
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
+    # adding hook for logging to user - option to rework scripts to not do within class itself
+    logging_function: SkipValidation[Callable] = print
+    class Config:
+        arbitrary_types_allowed = True
 
-    def to_dict(self) -> Dict:
+    def to_dict(self, exclude_none: bool = True)->Dict:
         """
-        A method that converts the object attributes to a dictionary excluding None values.
-
-        Returns:
-            Dict: A dictionary containing non-None attributes.
-        """
-        return {k: v for k, v in self.__dict__.items() if v is not None}
-
-    def modify_config(self, logging_function=print, **kwargs):
-        """
-        Modify the configuration attributes of the object based on the provided keyword arguments.
+        Convert the model instance to a dictionary.
 
         Args:
-            **kwargs (dict): Keyword arguments to modify the configuration attributes.
+            exclude_none (bool): If True, exclude fields with None values.
 
         Returns:
-            None
+            Dict: A dictionary representation of the model's fields.
         """
 
+        data = self.model_dump(exclude_none=exclude_none)
+        # remove the logging_function from the output
+        data.pop('logging_function', None)
+        return data
+
+    def modify_config(self, **kwargs):
+        """
+        Modify the config based on the provided keyword arguments.
+
+        Args:
+            **kwargs: argument names and values to modify the config; values of None are ignored
+                      since predicted from function calling response
+        """
+
+        new_data = self.model_dump()
+
         for key, value in kwargs.items():
-            # We want LLM to only modify keys specified by user
-            # By making defaults None in the function call, we can encourage LLM to not hallucinate values
-            # Then values sent as None to this function will be ignored - i.e. don't want to change them
-            if value is not None:
-                if hasattr(self, key):
-                    setattr(self, key, value)
-                    logger.info(f"Modifying {key} to {value}")
-                else:
-                    """
-                    raise AttributeError(
-                        f"{self.__class__.__name__} has no attribute '{key}'"
-                    )
-                    """
-                    logging_function(
-                        f"\n{self.__class__.__name__} has no attribute '{key}'. Please select a valid parameter to modify."
-                    )
+            if hasattr(self, key):
+                if value is not None:
+                    new_data[key] = value
+            else:
+                self.logging_function(
+                    f"{self.__class__.__name__} has no attribute '{key}'. Please select a valid parameter to modify.")
+
+        # try to create a new instance with the updated data
+        try:
+            new_instance = self.__class__.model_validate(new_data)
+
+            # if validation passes, update self with new values
+            for key, value in new_data.items():
+                setattr(self, key, value)
+
+            return self
+
+        except ValueError as e:
+            # if validation fails, log the error and return the original instance without changes
+            error_message = e.errors()[0]['msg'].replace('Value error, ', '')
+            self.logging_function(f"\nThe modifications you specified are invalid. {error_message}")
+            return self
 
 
-@dataclass
 class EC2InstanceConfig(AWSConfig):
     """
-    Dataclass for EC2 config -
-        a. With autoscaling --> create launch template from
-        b. Without autoscaling --> create EC2 instances with run_instances
-
-    Note: Alternatively can use Pydantic base model class for function calling argument validation
+    Pydantic class for EC2 config - used for deployment run_instances
     """
 
-    InstanceType: Optional[str] = None
-    ImageId: str = "ami-0984f4b9e98be44bf"
-    MinCount: int = 1
-    MaxCount: int = 1
+    InstanceType: str | None = None
+    ImageId: str = 'ami-0984f4b9e98be44bf'
+    MinCount: int = Field(default=1, ge=1)
+    MaxCount: int = Field(default=1, ge=1)
 
-    # Parameter extension ex -
-    # TagSpecifications: List[Dict] = field(default_factory=list)
+    @model_validator(mode='after')
+    def validate_counts(self):
+        if self.MinCount > self.MaxCount:
+            raise ValueError('MaxCount must be greater than MinCount. Try changing both values in the same query.')
+        return self
 
 
-@dataclass
 class AutoScalingConfig(AWSConfig):
     """
-    Dataclass for Autoscaling config - used for create_autoscaling_group
+    Pydantic class for Autoscaling config - used for create_autoscaling_group
     """
 
-    MinSize: int = 1
-    MaxSize: int = 1
-    DesiredCapacity: int = 1
+    MinSize: int = Field(default=1, ge=1)
+    MaxSize: int = Field(default=1, ge=1)
+    DesiredCapacity: int = Field(default=1, ge=1)
 
     # default values
     LaunchTemplateName: str = "test"
     VPCZoneIdentifier: str = "subnet-test-1"
-    AvailabilityZones: List[str] = field(default_factory=lambda: ["us-east-1a"])
+    AvailabilityZones: List[str] = Field(default_factory=lambda: ["us-east-1a"])
 
+    @model_validator(mode='after')
+    def validate_counts(self):
+        if self.MinSize > self.MaxSize:
+            raise ValueError('MaxSize must be greater than MinSize. Try changing both in the same query.')
+        if self.DesiredCapacity < self.MinSize or self.DesiredCapacity > self.MaxSize:
+            raise ValueError('DesiredCapacity must be between MinSize and MaxSize')
+
+        return self
 
 class AWSCLIBase:
     """

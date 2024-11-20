@@ -149,7 +149,7 @@ class LLMInterface:
         This is important for argument type validation from LLM --> calling functions
 
         Note: This function structure is to handle 1 function call at a time.
-        Howvever, easily extensible to multiple function calls (a(); b();) and nested function calls (a(arg = b()))
+        However, easily extensible to multiple function calls (a(); b();) and nested function calls (a(arg = b()))
 
         Args:
             llm_response (str): The Raven function calling response string ex 'find_best_instance(cpu=4, ram=8.0)'
@@ -291,7 +291,7 @@ class LLMInterface:
 
         return function_call_response_dict
 
-    def reflect(self, query, conversation_history: Optional[List[str]] = None) -> str:
+    def reflect(self, query, conversation_history: Optional[List[str]] = None) -> Dict:
         """
         Function reflectively analyzes previous user responses and the agent's current response
         to judge whether right function was called.

@@ -34,8 +34,8 @@ class AWSAgent:
         # starting config - contains default parameters for EC2
         # these can later be modified by user
         # Could also be moved to aws cli class when extended to other deployment types
-        self.ec2_config = EC2InstanceConfig()
-        self.as_config = AutoScalingConfig()
+        self.ec2_config = EC2InstanceConfig(logging_function=self.ui.log_to_user)
+        self.as_config = AutoScalingConfig(logging_function=self.ui.log_to_user)
         self.as_config.VPCZoneIdentifier = ec2_cli.subnet_id
         self.autoscaling_enabled = False
 
@@ -102,6 +102,10 @@ class AWSAgent:
 
         if recommended_ec2_instance_spec["found"]:
             recommended_ec2_name = recommended_ec2_instance_spec["API_Name"]
+            instance_ram = recommended_ec2_instance_spec["Instance_Memory"]
+            instance_cpu = recommended_ec2_instance_spec["vCPUs"]
+            instance_on_demand_cost = recommended_ec2_instance_spec["On_Demand"]
+            self.ui.log_to_user(f"\nFound Instance type {recommended_ec2_name} with {instance_ram} GB RAM, {instance_cpu} vCPUs at lowest on-demand cost of ${instance_on_demand_cost}/hr\n")
             self.ec2_config.modify_config(InstanceType=recommended_ec2_name)
             self.display_current_deployment_config()
         else:
@@ -126,7 +130,7 @@ class AWSAgent:
         Handles user intent to modify EC2 config.
         """
 
-        self.ec2_config.modify_config(self.ui.log_to_user, **kwargs)
+        self.ec2_config.modify_config(**kwargs)
         self.display_current_deployment_config()
 
     def handle_user_intent_modify_as_config(self, **kwargs):
@@ -139,7 +143,7 @@ class AWSAgent:
         Handling combined would just require only showing config to user of what was changed
         """
 
-        self.as_config.modify_config(self.ui.log_to_user, **kwargs)
+        self.as_config.modify_config(**kwargs)
         self.display_current_deployment_config()
 
     def display_current_deployment_config(self):

@@ -40,9 +40,6 @@ class UserInterface:
 
         self.log_to_user(f"\nRecommended optimized {config_type} config:")
 
-        # for param, value in config.items():
-        # self.log_to_user(f"{param}: {value}")
-
         config_string = "\n".join(
             f"{param}: {value}" for param, value in config.items()
         )
